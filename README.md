@@ -1,2 +1,6 @@
 # alleged-computer-game-disorder
-Erwischt du dich ab und an nicht vom Zocken weg zu kommen, musst aber bereits seit 3h schlafen? Dann kann dir mein Tool helfen, dich zu zwingen. Solltest du anschließend ausrasten, such dir bitte Hilfe! Ernsthaft!
+Do you find yourself unable to stop gaming, even though you should have been asleep for three hours already?\
+Then my tool can help you force yourself to stop.\
+If you end up freaking out afterwards, please seek help! Seriously!
+
+# Usage
