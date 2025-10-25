@@ -1,0 +1,5 @@
+dearpygui==2.1.0
+psutil==7.1.1
+pytz==2025.2
+schedule==1.2.2
+tzlocal==5.3.1
