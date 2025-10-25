@@ -1,6 +1,7 @@
 import datetime
 import dearpygui.dearpygui as dpg
 import json
+import logging
 import os
 import psutil
 import schedule
@@ -16,10 +17,15 @@ conf["snooze"] = None
 time_left_text_tag = -1
 time_left = "00:00"
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename="acgd.log", encoding="utf-8", level=logging.DEBUG)
+logger.info("Init...")
+
 
 def save_config():
     with open("acgd.conf", "w") as fp:
         json.dump(conf, fp)
+        logger.info("config saved")
 
 
 def load_config():
@@ -27,9 +33,11 @@ def load_config():
     try:
         with open("acgd.conf", "r") as fp:
             conf = json.load(fp)
+            logger.info("config loaded")
     except Exception as e:
         with open("acgd.conf", "w") as fp:
             fp.write("")
+            logger.info("config created")
 
 
 def sort_callback(sender, sort_specs):
@@ -69,6 +77,7 @@ def sort_callback(sender, sort_specs):
         new_order.append(pair[0])
 
     dpg.reorder_items(sender, 1, new_order)
+    logger.info("table sorted")
 
 
 def file_dialog_callback(sender, app_data):
@@ -80,18 +89,21 @@ def file_dialog_callback(sender, app_data):
 
     conf["exclusions"][app_data["file_name"]] = app_data["file_path_name"]
     set_table_data("ExclusionTable", conf["exclusions"])
+    logger.info("table data set")
     save_config()
 
 
 def input_text_time_to_sleep_callback(input_text_tag):
     global conf
     conf["time_to_sleep"] = dpg.get_value(input_text_tag)
+    logger.info("time to sleep set")
     save_config()
 
 
 def input_text_snooze_callback(input_text_tag):
     global conf
     conf["snooze"] = dpg.get_value(input_text_tag)
+    logger.info("snooze set")
     save_config()
 
 
@@ -99,9 +111,8 @@ def lets_go_callback():
     save_config()
     current_timezone = get_localzone()
     zone = current_timezone.key
-    print(zone)
     out = schedule.every().day.at(str(conf["time_to_sleep"]), zone).do(shutdown)
-    print(out)
+    logger.info("timer started")
     t1 = threading.Thread(name="schedule", target=schedule_run)
     t1.start()
 
@@ -109,11 +120,14 @@ def lets_go_callback():
 def delete_row(tag, k):
     parent_tag = dpg.get_item_parent(tag)
     dpg.delete_item(parent_tag)
+    logger.info("table entry removed")
+    save_config()
 
 
 def clear_table(table_tag):
     for tag in dpg.get_item_children(table_tag)[1]:
         dpg.delete_item(tag)
+    logger.info("table cleared")
 
 
 def set_table_data(tag, data):
@@ -124,11 +138,15 @@ def set_table_data(tag, data):
             dpg.add_text(k)
             dpg.add_text(data[k])
             tag_id = dpg.add_button(label="-", callback=delete_row)
+    logger.info("table new data set")
 
 
 def process_exists(process_name):
     processes = list(p.name() for p in psutil.process_iter())
-    return process_name in processes
+    if process_name in processes:
+        logger.info(f"{process_name} is running")
+        return True
+    return False
 
 
 def schedule_run():
@@ -139,13 +157,36 @@ def schedule_run():
     while True:
         schedule.run_pending()
         now = datetime.datetime.now()
-        now_datetime_str = datetime.datetime.strptime(f"{now.year}.{now.month}.{now.day}-{now.hour}:{now.minute}:{now.second}", "%Y.%m.%d-%H:%M:%S")
-        
-        sleep_hour = conf['time_to_sleep'].split(":")[0]
-        sleep_minute = conf['time_to_sleep'].split(":")[0]
-        sleep_datetime_str = datetime.datetime.strptime(f"{now.year}.{now.month}.{now.day}-{sleep_hour}:{sleep_minute}:{now.second}", "%Y.%m.%d-%H:%M:%S")
-        
-        time_left = time.strftime('%Hh:%Mm left..', time.gmtime((sleep_datetime_str - now_datetime_str).total_seconds()))
+        now_datetime_str = datetime.datetime.strptime(
+            f"{now.year}.{now.month}.{now.day}-{now.hour}:{now.minute}:{now.second}",
+            "%Y.%m.%d-%H:%M:%S",
+        )
+
+        sleep_hour = conf["time_to_sleep"].split(":")[0]
+        sleep_minute = conf["time_to_sleep"].split(":")[1]
+        sleep_datetime_str = datetime.datetime.strptime(
+            f"{now.year}.{now.month}.{now.day}-{sleep_hour}:{sleep_minute}:{now.second}",
+            "%Y.%m.%d-%H:%M:%S",
+        )
+
+        diff = (sleep_datetime_str - now_datetime_str).total_seconds()
+        if diff < 0:
+            now_datetime_str = datetime.datetime.strptime(
+                f"{now.year}.{now.month}.{now.day}-{now.hour}:{now.minute}:{now.second}",
+                "%Y.%m.%d-%H:%M:%S",
+            )
+
+            sleep_hour = conf["time_to_sleep"].split(":")[0]
+            sleep_minute = conf["time_to_sleep"].split(":")[1]
+            sleep_datetime_str = datetime.datetime.strptime(
+                f"{now.year}.{now.month}.{now.day+1}-{sleep_hour}:{sleep_minute}:{now.second}",
+                "%Y.%m.%d-%H:%M:%S",
+            )
+            diff = (sleep_datetime_str - now_datetime_str).total_seconds()
+
+        diff_time = time.gmtime(diff)
+        time_left = time.strftime("%Hh:%Mm left..", diff_time)
+        logger.info(f"timer = {time_left}")
         dpg.set_value(time_left_text_tag, time_left)
         time.sleep(1)
 
@@ -157,6 +198,7 @@ def shutdown():
         if process_exists(p):
             snooze = conf["snooze"] * 60
     os.system(f"shutdown /s /t {snooze}")
+    logger.info("shuting down")
 
 
 def main():
