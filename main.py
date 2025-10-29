@@ -5,6 +5,7 @@ import logging
 import os
 import psutil
 import schedule
+import sys
 import threading
 import time
 
@@ -20,6 +21,14 @@ time_left = "00:00"
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename="acgd.log", encoding="utf-8", level=logging.DEBUG)
 logger.info("Init...")
+
+
+def global_exception_handler(exctype, value, traceback):
+    logger.error("EXCEPTION: %s, %s, %s", exctype, value, traceback)
+    sys.__excepthook__(exctype, value, traceback)
+
+# hook global exceptions to log those
+sys.excepthook = global_exception_handler
 
 
 def save_config():
