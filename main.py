@@ -24,7 +24,7 @@ logger.info("Init...")
 
 
 def global_exception_handler(exctype, value, traceback):
-    logger.error("EXCEPTION: %s, %s, %s", exctype, value, traceback)
+    logger.error("EXCEPTION: %s, %s, %s", exctype, value, traceback.tb_frame)
     sys.__excepthook__(exctype, value, traceback)
 
 # hook global exceptions to log those
